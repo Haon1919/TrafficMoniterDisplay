@@ -1,22 +1,30 @@
 <template>
   <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+    <l-map class="map">
+      <l-tile-layer></l-tile-layer>
+    </l-map>
   </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+// import { LMap, LTileLayer, LMarker } from 'vue2-leaflet';
+import { LMap, LTileLayer } from 'vue2-leaflet';
+
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
-  }
+    LMap,
+    LTileLayer
+  },
 }
 </script>
 
 <style>
+.map{
+  height: 100%;
+  width: 100%;
+}
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -24,5 +32,10 @@ export default {
   text-align: center;
   color: #2c3e50;
   margin-top: 60px;
+  background-color: red;
+  height: 100vh;
+}
+.my-leaflet-map-container img {
+    max-height: none;
 }
 </style>
