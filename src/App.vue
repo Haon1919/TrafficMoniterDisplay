@@ -1,45 +1,96 @@
 <template>
   <div class="wrapper">
     <h1 class="title">Traffic Manager Display</h1>
-    <l-map
-      v-if="showMap"
-      :zoom="zoom"
-      :center="center"
-      :options="mapOptions"
-      style="height: 80%"
-      @update:center="centerUpdate"
-      @update:zoom="zoomUpdate"
-    >
-      <l-marker
-        v-for="message in filteredMessages"
-        :key="message._id"
-        :lat-lng="message.PositionReport.Position.coordinates"
-      >
-        <l-popup>
-          <div class="vessel-popup">
-            <h2>{{ message.StaticData.Name }}</h2>
-            <ul>
-              <li>Class: {{ message.Class }}</li>
-              <li>MMSI: {{ message.MMSI }}</li>
-              <li>IMO: {{ message.StaticData.IMO }}</li>
-              <li>Destination: {{ message.StaticData.Destination }}</li>
-              <li>ETA: {{ message.ETA }}</li>
-              <li>Status: {{ message.PositionReport.NavigationalStatus }}</li>
-              <li>Vessel type: {{ message.StaticData.VesselType }}</li>
-            </ul>
-          </div>
-        </l-popup>
-      </l-marker>
-      <l-tile-layer :url="url" :attribution="attribution" />
-    </l-map>
-    <div class="vessel-selection-wrapper" v-if="vessels.length !== 0">
-      <h2>Vessel List</h2>
-      <select v-model="selectedVessel">
-        <option :value="''">Any</option>
-        <option v-for="v in vessels" :key="v" :value="v">
-          {{ v }}
-        </option>
-      </select>
+    <div class="body-wrapper">
+      <div class="map-wrapper">
+        <l-map
+          v-if="showMap"
+          :zoom="zoom"
+          :center="center"
+          :options="mapOptions"
+          style="height: 80%"
+          @update:center="centerUpdate"
+          @update:zoom="zoomUpdate"
+        >
+          <l-marker
+            v-for="message in filteredMessages"
+            :key="message._id"
+            :lat-lng="message.PositionReport.Position.coordinates"
+          >
+            <l-popup>
+              <div class="vessel-popup">
+                <h2>{{ message.StaticData.Name }}</h2>
+                <ul>
+                  <li>Class: {{ message.Class }}</li>
+                  <li>MMSI: {{ message.MMSI }}</li>
+                  <li>IMO: {{ message.StaticData.IMO }}</li>
+                  <li>Destination: {{ message.StaticData.Destination }}</li>
+                  <li>ETA: {{ message.ETA }}</li>
+                  <li>
+                    Status: {{ message.PositionReport.NavigationalStatus }}
+                  </li>
+                  <li>Vessel type: {{ message.StaticData.VesselType }}</li>
+                </ul>
+              </div>
+            </l-popup>
+          </l-marker>
+          <l-tile-layer :url="url" :attribution="attribution" />
+        </l-map>
+      </div>
+      <div class="options-wrapper">
+        <div class="statistics-wrapper">
+          <h2>AIS statistics</h2>
+          <ul>
+            <li>
+              <h3>Destinations:</h3>
+              <ul class="destinations-container">
+                <li
+                  v-for="destination in this.aisStatistics.destinations"
+                  :key="destination"
+                >
+                  {{ destination }}
+                </li>
+              </ul>
+            </li>
+            <li>
+              <h3>Average SOG:</h3>
+              {{ this.aisStatistics.averageSOG }}
+            </li>
+            <li>
+              <h3>Total Moored:</h3>
+              {{ this.aisStatistics.totalMoored }}
+            </li>
+            <li>
+              <h3>Total Underway</h3>
+              {{ this.aisStatistics.totalUnderway }}
+            </li>
+            <li>
+              <h3>Vessel Types:</h3>
+              <ul class="vessel-container">
+                <li
+                  v-for="vessel in Object.keys(
+                    this.aisStatistics.vesselTypeCount
+                  )"
+                  :key="vessel"
+                >
+                  {{ vessel }}: {{ aisStatistics.vesselTypeCount[[vessel]] }}
+                </li>
+              </ul>
+            </li>
+            <li>Total Vessels: {{ this.aisStatistics.totalVessels }}</li>
+          </ul>
+        </div>
+
+        <div class="vessel-selection-wrapper" v-if="vessels.length !== 0">
+          <h2>Vessel List</h2>
+          <select v-model="selectedVessel">
+            <option :value="''">Any</option>
+            <option v-for="v in vessels" :key="v" :value="v">
+              {{ v }}
+            </option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -59,10 +110,10 @@ export default {
 
   created() {
     console.log("Creating AIS message fetching interval:");
-    this.fetchMessageInterval = setInterval(
-      () => this.fetchAISMessages(),
-      5000
-    );
+    this.fetchMessageInterval = setInterval(() => {
+      this.fetchAISMessages();
+      this.fetchAISStatistics();
+    }, 5000);
   },
 
   beforeDestroy() {
@@ -74,14 +125,15 @@ export default {
     return {
       selectedVessel: "",
       vessels: [],
+      aisStatistics: {},
       fetchMessageInterval: null,
       messages: [],
-      zoom: 12,
+      zoom: 10,
       center: latLng(55.66, 12.7875),
       url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       attribution:
         '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-      currentZoom: 12,
+      currentZoom: 10,
       currentCenter: latLng(55.66, 12.7875),
       showParagraph: false,
       mapOptions: {
@@ -117,15 +169,74 @@ export default {
           this.messages = messages;
         });
     },
+    fetchAISStatistics() {
+      fetch("http://localhost:3000/ais-statistics")
+        .then((res) => res.json())
+        .then((statistics) => {
+          this.aisStatistics = statistics;
+        });
+    },
   },
 };
 </script>
 
 <style>
 @import "~leaflet/dist/leaflet.css";
+
+.vessel-container {
+  height: 18vh;
+  overflow-y: scroll;
+}
+
+.destinations-container {
+  height: 18vh;
+  overflow-y: scroll;
+}
+
 .wrapper {
   height: 100vh;
   width: 100vw;
+}
+
+.options-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 50%;
+  justify-content: space-evenly;
+}
+
+.statistics-wrapper {
+  border: 1px solid black;
+  padding: 55px;
+  height: 68vh;
+  overflow-y: scroll;
+}
+
+.statistics-wrapper h2 {
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 5vh;
+}
+
+.statistics-wrapper ul {
+  list-style: none;
+  padding: 0;
+}
+
+.statistics-wrapper ul li {
+  margin-bottom: 23%;
+  text-align: center;
+}
+
+.map-wrapper {
+  height: 100vh;
+  width: 60vw;
+}
+
+.body-wrapper {
+  display: flex;
+  flex-direction: row;
 }
 
 .title {
