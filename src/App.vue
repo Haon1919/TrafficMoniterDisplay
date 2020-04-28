@@ -40,7 +40,7 @@
       <div class="options-wrapper">
         <div class="statistics-wrapper">
           <h2>AIS statistics</h2>
-          <ul>
+          <ul v-if="this.aisStatistics" >
             <li>
               <h3>Destinations:</h3>
               <ul class="destinations-container">
@@ -83,7 +83,7 @@
 
         <div class="vessel-selection-wrapper" v-if="vessels.length !== 0">
           <h2>Vessel List</h2>
-          <select v-model="selectedVessel">
+          <select v-model="selectedVessel" @change="onVesselChange($event)">
             <option :value="''">Any</option>
             <option v-for="v in vessels" :key="v" :value="v">
               {{ v }}
@@ -125,7 +125,7 @@ export default {
     return {
       selectedVessel: "",
       vessels: [],
-      aisStatistics: {},
+      aisStatistics: null,
       fetchMessageInterval: null,
       messages: [],
       zoom: 10,
@@ -165,7 +165,21 @@ export default {
       fetch("http://localhost:3000/AIS/list")
         .then((res) => res.json())
         .then((messages) => {
-          this.vessels = messages.map((message) => message.StaticData.Name);
+          let vesselList = [];
+          for (let message of messages) {
+            if (message.StaticData.Name === this.selectedVessel) {
+              this.center = latLng(
+                message.PositionReport.Position.coordinates[0],
+                message.PositionReport.Position.coordinates[1]
+              );
+              this.currentCenter = latLng(
+                message.PositionReport.Position.coordinates[0],
+                message.PositionReport.Position.coordinates[1]
+              );
+            }
+            vesselList.push(message.StaticData.Name);
+          }
+          this.vessels = vesselList;
           this.messages = messages;
         });
     },
@@ -175,6 +189,32 @@ export default {
         .then((statistics) => {
           this.aisStatistics = statistics;
         });
+    },
+    onVesselChange(e) {
+      if (this.selectedVessel !== "") {
+        let message = this.messages.find(
+          (message) => message.StaticData.Name === e.target.value
+        );
+        if (this.zoom !== 15) {
+          setTimeout(() => {
+            this.currentZoom = 15;
+            this.zoom = 15;
+          }, 250);
+        }
+        this.center = latLng(
+          message.PositionReport.Position.coordinates[0],
+          message.PositionReport.Position.coordinates[1]
+        );
+        this.currentCenter = latLng(
+          message.PositionReport.Position.coordinates[0],
+          message.PositionReport.Position.coordinates[1]
+        );
+      } else {
+        this.center = latLng(55.66, 12.7875);
+        this.currentCenter = latLng(55.66, 12.7875);
+        this.currentZoom = 10;
+        this.zoom = 10;
+      }
     },
   },
 };
